@@ -671,7 +671,7 @@ async function cargar(){
       allTxns = data;
     } else {
       // buscar el primer array que encuentre en el objeto
-      const arr = data.data||data.records||data.transacciones||data.result||data.rows||data.items||
+      const arr = data.registros||data.data||data.records||data.transacciones||data.result||data.rows||data.items||
                   Object.values(data).find(v=>Array.isArray(v)) || [];
       allTxns = arr;
     }
