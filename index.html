@@ -655,15 +655,64 @@ async function cargar(){
     const res = await fetch(`${url}?accion=pendientes`);
     if(!res.ok) throw new Error(`HTTP ${res.status}`);
     const raw = await res.text();
+
+    // ── DEBUG: mostrar respuesta cruda ──────────────
+    showDebug(raw);
+    // ────────────────────────────────────────────────
+
     let data;
-    try{ data=JSON.parse(raw); }catch(e){ throw new Error('Respuesta no es JSON válido'); }
+    try{ data=JSON.parse(raw); }catch(e){
+      throw new Error('Respuesta no es JSON válido. Ver panel debug abajo.');
+    }
     if(data.error) throw new Error(data.error);
-    allTxns = Array.isArray(data) ? data : (data.data||data.records||data.transacciones||[]);
+
+    // Intentar normalizar cualquier estructura
+    if(Array.isArray(data)){
+      allTxns = data;
+    } else {
+      // buscar el primer array que encuentre en el objeto
+      const arr = data.data||data.records||data.transacciones||data.result||data.rows||data.items||
+                  Object.values(data).find(v=>Array.isArray(v)) || [];
+      allTxns = arr;
+    }
+
     renderAll();
     showToast(`${allTxns.length} transacciones cargadas`,'success');
   }catch(e){
     showToast('Error: '+e.message,'error');
   }finally{ hideLoading(); }
+}
+
+function showDebug(raw){
+  let el = document.getElementById('debugPanel');
+  if(!el){
+    el = document.createElement('div');
+    el.id = 'debugPanel';
+    el.style.cssText = `
+      position:fixed; bottom:0; left:0; right:0; z-index:500;
+      background:#0A0A0A; border-top:2px solid #EAB800;
+      font-family:'DM Mono',monospace; font-size:11px; color:#EAB800;
+      max-height:220px; overflow:auto;
+    `;
+    document.body.appendChild(el);
+  }
+  let parsed = '(no es JSON válido)';
+  try{ parsed = JSON.stringify(JSON.parse(raw), null, 2); }catch(e){}
+
+  el.innerHTML = `
+    <div style="display:flex;align-items:center;gap:12px;padding:8px 16px;border-bottom:1px solid #333;background:#111;position:sticky;top:0;">
+      <span style="color:#EAB800;font-weight:700;letter-spacing:2px;font-size:10px;">🔍 DEBUG — RESPUESTA GAS</span>
+      <span style="color:#666;font-size:10px;">accion=pendientes</span>
+      <button onclick="document.getElementById('debugPanel').remove()" 
+        style="margin-left:auto;background:none;border:1px solid #444;color:#AAA;padding:2px 8px;border-radius:2px;cursor:pointer;font-size:10px;">
+        Cerrar ✕
+      </button>
+    </div>
+    <div style="padding:12px 16px;">
+      <div style="color:#AAA;margin-bottom:6px;font-size:10px;">RAW (${raw.length} chars):</div>
+      <pre style="color:#FFFFFF;white-space:pre-wrap;word-break:break-all;line-height:1.5;">${esc(raw.substring(0,2000))}${raw.length>2000?'\n... (truncado)':''}</pre>
+    </div>
+  `;
 }
 
 function recargar(){ cargar(); }
