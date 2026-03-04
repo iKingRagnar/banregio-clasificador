@@ -673,7 +673,7 @@ async function cargar(){
   if(Array.isArray(data)){
     allTxns = data;
   } else {
-    allTxns = data.registros||data.data||data.records||data.transacciones||
+    allTxns = data.pendientes||data.registros||data.data||data.records||data.transacciones||
               data.result||data.rows||data.items||
               Object.values(data).find(v=>Array.isArray(v)) || [];
   }
@@ -798,9 +798,9 @@ function renderList(){
   allTxns.forEach((t,i)=>{
     const folio=t.folio||t.Folio||t.FOLIO||i;
     const desc=t.descripcion||t.Descripcion||t.DESCRIPCION||t.desc||'(sin descripción)';
-    const fecha=t.fecha||t.Fecha||t.FECHA||'';
-    const raw=t.importe||t.Importe||t.IMPORTE||0;
-    const clave=t.clave||t.Clave||t.CLAVE||'';
+    const fecha=t.fecha||t.fecha_cargo||t.Fecha||t.FECHA||'';
+    const raw=parseFloat(t.importe||t.Importe||t.IMPORTE||t.cargo||0)||0;
+    const clave=t.clave||t.clave_proveedor||t.Clave||t.CLAVE||'';
     const isDone=!!classified[folio];
     const sc=getStatusClass(isDone?'done':clave);
     const sl=isDone?'CLASIFICADO':(clave||'SIN CLAVE');
@@ -827,14 +827,14 @@ function selectTxn(i){
   document.getElementById('detailForm').style.display='block';
   document.getElementById('dFolio').textContent=`FOLIO ${folio}`;
   document.getElementById('dDesc').textContent=desc;
-  document.getElementById('dFecha').textContent=formatFecha(t.fecha||t.Fecha||t.FECHA||'');
-  document.getElementById('dImporte').textContent=formatMoney(t.importe||t.Importe||t.IMPORTE||0);
-  document.getElementById('dStatus').textContent=t.clave||t.Clave||t.CLAVE||'(vacío)';
+  document.getElementById('dFecha').textContent=formatFecha(t.fecha||t.fecha_cargo||t.Fecha||t.FECHA||'');
+  document.getElementById('dImporte').textContent=formatMoney(parseFloat(t.importe||t.cargo||0)||0);
+  const claveAct=t.clave||t.clave_proveedor||t.Clave||t.CLAVE||'';
+  document.getElementById('dStatus').textContent=claveAct||'(vacío)';
   const prev=classified[folio];
-  const clave=t.clave||t.Clave||t.CLAVE||'';
-  document.getElementById('fClave').value=prev?prev.clave:(clave!=='REVISAR'&&clave!=='PENDIENTE'?clave:'');
-  document.getElementById('fConcepto').value=prev?prev.concepto:(t.concepto||t.Concepto||'');
-  document.getElementById('fCentro').value=prev?prev.centro:(t.centro||t.Centro||'');
+  document.getElementById('fClave').value=prev?prev.clave:(claveAct!=='REVISAR'&&claveAct!=='PENDIENTE'?claveAct:'');
+  document.getElementById('fConcepto').value=prev?prev.concepto:(t.concepto||t.concepto_gasto||t.Concepto||'');
+  document.getElementById('fCentro').value=prev?prev.centro:(t.centro||t.centro_costo||t.Centro||'');
   updateQuickTags(document.getElementById('fClave').value);
   document.querySelectorAll('.txn-card').forEach((c,ci)=>c.classList.toggle('active',ci===i));
 }
