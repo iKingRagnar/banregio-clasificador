@@ -796,12 +796,13 @@ function renderList(){
   }
   el.innerHTML='';
   allTxns.forEach((t,i)=>{
-    const folio=t.folio||t.Folio||t.FOLIO||i;
+    const folio=t.folio||t.Folio||t.FOLIO||'';
+    const fila=t.fila||i;
     const desc=t.descripcion||t.Descripcion||t.DESCRIPCION||t.desc||'(sin descripción)';
     const fecha=t.fecha||t.fecha_cargo||t.Fecha||t.FECHA||'';
     const raw=parseFloat(t.importe||t.Importe||t.IMPORTE||t.cargo||0)||0;
     const clave=t.clave||t.clave_proveedor||t.Clave||t.CLAVE||'';
-    const isDone=!!classified[folio];
+    const isDone=!!classified[fila];
     const sc=getStatusClass(isDone?'done':clave);
     const sl=isDone?'CLASIFICADO':(clave||'SIN CLAVE');
     const card=document.createElement('div');
@@ -821,17 +822,18 @@ function renderList(){
 function selectTxn(i){
   selectedIdx=i;
   const t=allTxns[i]; if(!t) return;
-  const folio=t.folio||t.Folio||t.FOLIO||i;
+  const folio=t.folio||t.Folio||t.FOLIO||'';
+  const fila=t.fila||i;
   const desc=t.descripcion||t.Descripcion||t.DESCRIPCION||'(sin descripción)';
   document.getElementById('emptyState').style.display='none';
   document.getElementById('detailForm').style.display='block';
-  document.getElementById('dFolio').textContent=`FOLIO ${folio}`;
+  document.getElementById('dFolio').textContent=`FILA ${fila}${folio?' · REF: '+folio:''}`;
   document.getElementById('dDesc').textContent=desc;
   document.getElementById('dFecha').textContent=formatFecha(t.fecha||t.fecha_cargo||t.Fecha||t.FECHA||'');
   document.getElementById('dImporte').textContent=formatMoney(parseFloat(t.importe||t.cargo||0)||0);
   const claveAct=t.clave||t.clave_proveedor||t.Clave||t.CLAVE||'';
   document.getElementById('dStatus').textContent=claveAct||'(vacío)';
-  const prev=classified[folio];
+  const prev=classified[fila];
   document.getElementById('fClave').value=prev?prev.clave:(claveAct!=='REVISAR'&&claveAct!=='PENDIENTE'?claveAct:'');
   document.getElementById('fConcepto').value=prev?prev.concepto:(t.concepto||t.concepto_gasto||t.Concepto||'');
   document.getElementById('fCentro').value=prev?prev.centro:(t.centro||t.centro_costo||t.Centro||'');
@@ -855,12 +857,12 @@ function updateStats(){
 function clasificarActual(){
   if(selectedIdx===null) return;
   const t=allTxns[selectedIdx];
-  const folio=t.folio||t.Folio||t.FOLIO||selectedIdx;
+  const fila=t.fila||selectedIdx;
   const clave=document.getElementById('fClave').value.trim();
   const concepto=document.getElementById('fConcepto').value.trim();
   const centro=document.getElementById('fCentro').value.trim();
   if(!clave){ showToast('Selecciona una clave','error'); return; }
-  classified[folio]={clave,concepto,centro};
+  classified[fila]={clave,concepto,centro, _folio:t.folio||'', _desc:t.descripcion||''};
   showToast('Clasificado ✓','success');
   renderList(); updateStats();
   const next=findNextUndone(selectedIdx);
@@ -868,8 +870,8 @@ function clasificarActual(){
 }
 
 function findNextUndone(from){
-  for(let i=from+1;i<allTxns.length;i++){const f=allTxns[i].folio||allTxns[i].Folio||allTxns[i].FOLIO||i;if(!classified[f])return i;}
-  for(let i=0;i<from;i++){const f=allTxns[i].folio||allTxns[i].Folio||allTxns[i].FOLIO||i;if(!classified[f])return i;}
+  for(let i=from+1;i<allTxns.length;i++){const f=allTxns[i].fila||i;if(!classified[f])return i;}
+  for(let i=0;i<from;i++){const f=allTxns[i].fila||i;if(!classified[f])return i;}
   return null;
 }
 
@@ -882,11 +884,16 @@ async function guardarTodo(){
   if(!entries.length) return;
   showLoading(`GUARDANDO ${entries.length} REGISTROS...`);
   let ok=0,fail=0;
-  for(const [folio,vals] of entries){
-    const txn=allTxns.find(t=>(t.folio||t.Folio||t.FOLIO)==folio);
-    const desc=txn?(txn.descripcion||txn.Descripcion||''):'';
+  for(const [fila,vals] of entries){
     try{
-      const params=new URLSearchParams({accion:'update',folio,clave:vals.clave,concepto:vals.concepto,centro:vals.centro,descripcion:desc});
+      const params=new URLSearchParams({
+        accion:'update',
+        folio: vals._folio||'',
+        descripcion: vals._desc||'',
+        clave:vals.clave,
+        concepto:vals.concepto,
+        centro:vals.centro
+      });
       const res=await fetch(`${url}?${params}`);
       if(!res.ok) throw new Error(`HTTP ${res.status}`);
       ok++;
